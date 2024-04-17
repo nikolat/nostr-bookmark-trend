@@ -101,13 +101,14 @@ const getBookmarks = async () => {
 	profiles = new Map<string, object>();
 	profiles = await getProfiles(fetcher, relays, followingPubkeys, profiles);
 	const inc = 50;
-	const max = 3000;
+	const max = 1000;
 	const until = Math.floor(Date.now() / 1000);
 	console.log('fetch bookmark start');
-	for (let i = 0; i < bookmarkNoteIds.size && i < max; i += inc) {
-		console.log(`${i} / ${bookmarkNoteIds.size}`);
-		message = `${i} / ${bookmarkNoteIds.size}`;
-		const ids = Array.from(bookmarkNoteIds).slice(i, Math.min(i + inc, bookmarkNoteIds.size - 1));
+	const bookmarkNoteIdsTofetch = Array.from(bookmarkNoteIds).filter(id => (bookmarkedPubkeys.get(id)?.size ?? 0) >= threshold);
+	for (let i = 0; i < bookmarkNoteIdsTofetch.length && i < max; i += inc) {
+		console.log(`${i} / ${bookmarkNoteIdsTofetch.length}`);
+		message = `${i} / ${bookmarkNoteIdsTofetch.length}`;
+		const ids = bookmarkNoteIdsTofetch.slice(i, Math.min(i + inc, bookmarkNoteIdsTofetch.length - 1));
 		const postIter = fetcher.allEventsIterator(
 			relays,
 			{ ids: ids },
