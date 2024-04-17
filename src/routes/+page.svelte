@@ -97,14 +97,25 @@ const getBookmarks = async () => {
 	bookmarkedPubkeys = new Map<string, Set<string>>();
 	[bookmarkNoteIds, bookmarkedPubkeys] = await setBookmarkedPubkeys(ev10003PerAuthor, bookmarkNoteIds, bookmarkedPubkeys);
 	[bookmarkNoteIds, bookmarkedPubkeys] = await setBookmarkedPubkeys(ev30001PerAuthor, bookmarkNoteIds, bookmarkedPubkeys);
-	bookmarkedEvents = [];
+	const bookmarkNoteIdsTofetch = Array.from(bookmarkNoteIds).filter(id => (bookmarkedPubkeys.get(id)?.size ?? 0) >= threshold);
+	const pubkeysToFetch = new Set<string>();
+	for (const id of bookmarkNoteIdsTofetch) {
+		const ps = bookmarkedPubkeys.get(id);
+		if (ps !== undefined && ps.size >= threshold) {
+			for (const p of ps) {
+				pubkeysToFetch.add(p);
+			}
+		}
+	}
+	console.log('followees to fetch:', Array.from(pubkeysToFetch));
 	profiles = new Map<string, object>();
-	profiles = await getProfiles(fetcher, relays, followingPubkeys, profiles);
+	profiles = await getProfiles(fetcher, relays, Array.from(pubkeysToFetch), profiles);
+
+	bookmarkedEvents = [];
 	const inc = 50;
 	const max = 1000;
 	const until = Math.floor(Date.now() / 1000);
 	console.log('fetch bookmark start');
-	const bookmarkNoteIdsTofetch = Array.from(bookmarkNoteIds).filter(id => (bookmarkedPubkeys.get(id)?.size ?? 0) >= threshold);
 	for (let i = 0; i < bookmarkNoteIdsTofetch.length && i < max; i += inc) {
 		console.log(`${i} / ${bookmarkNoteIdsTofetch.length}`);
 		message = `${i} / ${bookmarkNoteIdsTofetch.length}`;
