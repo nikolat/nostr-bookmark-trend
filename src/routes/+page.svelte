@@ -11,6 +11,14 @@ const defaultRelays = [
 ];
 const linkto = 'https://nostx.io/';
 const threshold = 2;
+const getRoboHashURL = (pubkey: string) => {
+	return `https://robohash.org/${nip19.npubEncode(pubkey)}?set=set4`;
+};
+
+const enum SortType {
+	Time,
+	Count,
+};
 
 let npub: string;
 let bookmarkedEvents: NostrEvent[] = [];
@@ -18,6 +26,7 @@ let bookmarkedPubkeys: Map<string, Set<string>>;
 let profiles = new Map<string, any>();
 let isGettingEvents = false;
 let message = '';
+let sort = SortType.Time;
 
 const getNpubWithNIP07 = async () => {
 	const nostr = (window as any).nostr;
@@ -34,6 +43,7 @@ const getNpubWithNIP07 = async () => {
 };
 
 const getBookmarks = async () => {
+	bookmarkedPubkeys = new Map<string, Set<string>>();
 	let dr;
 	try {
 		dr = nip19.decode(npub);
@@ -47,7 +57,7 @@ const getBookmarks = async () => {
 	}
 	const loginPubkey = dr.data;
 	isGettingEvents = true;
-	message = '';
+	message = 'getting bookmarks...';
 	const fetcher = NostrFetcher.init();
 	const ev10002: NostrEvent | undefined = await fetcher.fetchLastEvent(
 		defaultRelays,
@@ -68,6 +78,7 @@ const getBookmarks = async () => {
 		}
 	}
 	console.log('relays:', relays);
+	message = `${relays.length} relays`;
 	const ev3: NostrEvent | undefined = await fetcher.fetchLastEvent(
 		relays,
 		{ kinds: [3], authors: [loginPubkey] },
@@ -79,6 +90,7 @@ const getBookmarks = async () => {
 	}
 	const followingPubkeys = ev3.tags.filter(tag => tag[0] === 'p').map(tag => tag[1]);
 	console.log('followees:', followingPubkeys);
+	message = `${followingPubkeys.length} followees`;
 	const ev10003PerAuthor = fetcher.fetchLastEventPerAuthor(
 		{
 			authors: followingPubkeys,
@@ -94,7 +106,6 @@ const getBookmarks = async () => {
 		{ kinds: [30001], '#d': ['bookmark'] },
 	);
 	let bookmarkNoteIds = new Set<string>();
-	bookmarkedPubkeys = new Map<string, Set<string>>();
 	[bookmarkNoteIds, bookmarkedPubkeys] = await setBookmarkedPubkeys(ev10003PerAuthor, bookmarkNoteIds, bookmarkedPubkeys);
 	[bookmarkNoteIds, bookmarkedPubkeys] = await setBookmarkedPubkeys(ev30001PerAuthor, bookmarkNoteIds, bookmarkedPubkeys);
 	const bookmarkNoteIdsTofetch = Array.from(bookmarkNoteIds).filter(id => (bookmarkedPubkeys.get(id)?.size ?? 0) >= threshold);
@@ -108,6 +119,7 @@ const getBookmarks = async () => {
 		}
 	}
 	console.log('followees to fetch:', Array.from(pubkeysToFetch));
+	message = `profiles of ${pubkeysToFetch.size} followees fetching...`;
 	profiles = new Map<string, object>();
 	profiles = await getProfiles(fetcher, relays, Array.from(pubkeysToFetch), profiles);
 
@@ -118,7 +130,7 @@ const getBookmarks = async () => {
 	console.log('fetch bookmark start');
 	for (let i = 0; i < bookmarkNoteIdsTofetch.length && i < max; i += inc) {
 		console.log(`${i} / ${bookmarkNoteIdsTofetch.length}`);
-		message = `${i} / ${bookmarkNoteIdsTofetch.length}`;
+		message = `${i} / ${bookmarkNoteIdsTofetch.length} fetching events...`;
 		const ids = bookmarkNoteIdsTofetch.slice(i, Math.min(i + inc, bookmarkNoteIdsTofetch.length - 1));
 		const postIter = fetcher.allEventsIterator(
 			relays,
@@ -183,6 +195,17 @@ const getProfiles = async (fetcher: NostrFetcher, relays: string[], pubkeys: str
 	return profiles;
 };
 
+$: sortedEvents = sort === SortType.Time ? bookmarkedEvents :
+	sort === SortType.Count ? bookmarkedEvents.toSorted((a, b) => {
+		if ((bookmarkedPubkeys.get(a.id)?.size ?? 0) < (bookmarkedPubkeys.get(b.id)?.size ?? 0)) {
+			return 1;
+		}
+		if ((bookmarkedPubkeys.get(a.id)?.size ?? 0) > (bookmarkedPubkeys.get(b.id)?.size ?? 0)) {
+			return -1;
+		}
+		return 0;
+	}) : bookmarkedEvents;
+
 </script>
 
 <svelte:head>
@@ -193,27 +216,41 @@ const getProfiles = async (fetcher: NostrFetcher, relays: string[], pubkeys: str
 <main>
 <button on:click={getNpubWithNIP07}>get public key from extension</button>
 <input id="npub" type="text" placeholder="npub1..." bind:value={npub} />
-<button on:click={getBookmarks} disabled={!npub || isGettingEvents}>{#if isGettingEvents}getting bookmarks...{:else}show bookmarks of followees{/if}</button>
+<button on:click={getBookmarks} disabled={!npub || isGettingEvents}>show bookmarks of followees</button>
+<span>Sort</span>
+<label>
+	<input type="radio" bind:group={sort} name="sorttype" value={SortType.Time}>
+	time
+</label>
+<label>
+	<input type="radio" bind:group={sort} name="sorttype" value={SortType.Count}>
+	count
+</label>
 <p>{message}</p>
 <dl>
-	{#each bookmarkedEvents as note}
-	{@const prof = profiles.get(note.pubkey)}
-	{@const count = bookmarkedPubkeys.get(note.id)?.size ?? 0}
-	{#if count >= threshold}
-	<dt><a href="{linkto}{nip19.npubEncode(note.pubkey)}" target="_blank" rel="noopener noreferrer"
-		><img src="{prof?.picture ?? ''}" alt="" class="avator_author" /> {prof?.display_name ?? ''} @{prof?.name ?? nip19.npubEncode(note.pubkey).slice(0, 10) + '...'}</a
-		> <a href="{linkto}{nip19.neventEncode(note)}" target="_blank" rel="noopener noreferrer"
-		><br /><time>{(new Date(1000 * note.created_at)).toLocaleString()}</time></a
-		><span>
-		{#each bookmarkedPubkeys.get(note.id) ?? [] as pubkey}
-			{@const bprof = profiles.get(pubkey)}
-			<a href="{linkto}{nip19.npubEncode(pubkey)}" target="_blank" rel="noopener noreferrer"
-			><img src="{bprof?.picture ?? ''}" alt="" class="avator_bookmark" /></a>
-		{/each}
-		</span>
-	</dt>
-	<dd>{note.content}</dd>
-	{/if}
+	{#each sortedEvents as note}
+		{@const prof = profiles.get(note.pubkey)}
+		{@const count = bookmarkedPubkeys.get(note.id)?.size ?? 0}
+		{#if count >= threshold}
+			{@const name = prof?.name ?? nip19.npubEncode(note.pubkey).slice(0, 10) + '...'}
+			{@const display_name = prof?.display_name ?? ''}
+			{@const picture = prof?.picture ?? getRoboHashURL(note.pubkey)}
+			<dt><a href="{linkto}{nip19.npubEncode(note.pubkey)}" target="_blank" rel="noopener noreferrer"
+				><img src="{picture}" alt="@{name}" title="{display_name} @{name}" class="avator_author" /> {display_name} @{name}</a
+				> <a href="{linkto}{note.kind === 1 ? nip19.noteEncode(note.id) : nip19.neventEncode(note)}" target="_blank" rel="noopener noreferrer"
+				><br /><time>{(new Date(1000 * note.created_at)).toLocaleString()}</time></a
+				><span
+			>{#each bookmarkedPubkeys.get(note.id) ?? [] as pubkey}
+				{@const prof = profiles.get(pubkey)}
+				{@const name = prof?.name ?? nip19.npubEncode(pubkey).slice(0, 10) + '...'}
+				{@const display_name = prof?.display_name ?? ''}
+				{@const picture = prof?.picture ?? getRoboHashURL(pubkey)}
+				<a href="{linkto}{nip19.npubEncode(pubkey)}" target="_blank" rel="noopener noreferrer"
+				><img src="{picture}" alt="@{name}" title="{display_name} @{name}" class="avator_bookmark" /></a>
+			{/each}</span
+			></dt>
+			<dd>{note.content}</dd>
+		{/if}
 	{/each}
 </dl>
 </main>
