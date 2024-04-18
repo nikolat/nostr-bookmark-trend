@@ -185,7 +185,12 @@ const getProfiles = async (fetcher: NostrFetcher, relays: string[], pubkeys: str
 
 </script>
 
-<h1>Nostr Bookmark Trend</h1>
+<svelte:head>
+	<title>Nostr Bookmark Trend</title>
+</svelte:head>
+
+<header><h1>Nostr Bookmark Trend</h1></header>
+<main>
 <button on:click={getNpubWithNIP07}>get public key from extension</button>
 <input id="npub" type="text" placeholder="npub1..." bind:value={npub} />
 <button on:click={getBookmarks} disabled={!npub || isGettingEvents}>{#if isGettingEvents}getting bookmarks...{:else}show bookmarks of followees{/if}</button>
@@ -211,6 +216,8 @@ const getProfiles = async (fetcher: NostrFetcher, relays: string[], pubkeys: str
 	{/if}
 	{/each}
 </dl>
+</main>
+<footer><a href="https://github.com/nikolat/nostr-bookmark-trend">GitHub</a></footer>
 
 <style>
 #npub {
@@ -232,5 +239,8 @@ dd {
 	clear: left;
 	white-space: pre-wrap;
 	margin-bottom: 1em;
+}
+footer {
+	text-align: center;
 }
 </style>
