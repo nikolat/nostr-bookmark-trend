@@ -8,4 +8,6 @@ Nostr events bookmarked by followees.
 - [nostr-fetch](https://github.com/jiftechnify/nostr-fetch)
 - [Svelte](https://svelte.dev/)
 - [Water.css](https://watercss.kognise.dev/)
+- [RoboHash](https://robohash.org/)
+- [Nostx](https://nostx.io/)
 - [Nostr](https://github.com/nostr-protocol/nips)
