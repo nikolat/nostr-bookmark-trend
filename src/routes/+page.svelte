@@ -9,6 +9,7 @@ const defaultRelays = [
 	'wss://nos.lol',
 	'wss://relay.damus.io',
 ];
+const linkGitHub = 'https://github.com/nikolat/nostr-bookmark-trend';
 const linkto = 'https://nostx.io/';
 const threshold = 2;
 const getRoboHashURL = (pubkey: string) => {
@@ -140,7 +141,7 @@ const getBookmarks = async () => {
 		for await (const ev of postIter) {
 			bookmarkedEvents = insertEventIntoDescendingList(bookmarkedEvents, ev);
 		}
-		const pubkeysOfBookmark = Array.from(new Set<string>(bookmarkedEvents.map(ev =>  ev.pubkey)));
+		const pubkeysOfBookmark = Array.from(new Set<string>(bookmarkedEvents.map(ev => ev.pubkey)));
 		const pubkeysGot = new Set<string>(profiles.keys());
 		const diff = pubkeysOfBookmark.filter(p => !pubkeysGot.has(p));
 		if (diff.length > 0) {
@@ -195,12 +196,13 @@ const getProfiles = async (fetcher: NostrFetcher, relays: string[], pubkeys: str
 	return profiles;
 };
 
-$: sortedEvents = sort === SortType.Time ? bookmarkedEvents :
-	sort === SortType.Count ? bookmarkedEvents.toSorted((a, b) => {
-		if ((bookmarkedPubkeys.get(a.id)?.size ?? 0) < (bookmarkedPubkeys.get(b.id)?.size ?? 0)) {
+$: sortedEvents = sort === SortType.Time ? bookmarkedEvents
+	: sort === SortType.Count ? bookmarkedEvents.toSorted((a, b) => {
+		const count = (x: NostrEvent) => bookmarkedPubkeys.get(x.id)?.size ?? 0;
+		if (count(a) < count(b)) {
 			return 1;
 		}
-		if ((bookmarkedPubkeys.get(a.id)?.size ?? 0) > (bookmarkedPubkeys.get(b.id)?.size ?? 0)) {
+		if (count(a) > count(b)) {
 			return -1;
 		}
 		return 0;
@@ -229,13 +231,14 @@ $: sortedEvents = sort === SortType.Time ? bookmarkedEvents :
 <p>{message}</p>
 <dl>
 	{#each sortedEvents as note}
-		{@const prof = profiles.get(note.pubkey)}
 		{@const count = bookmarkedPubkeys.get(note.id)?.size ?? 0}
 		{#if count >= threshold}
-			{@const name = prof?.name ?? nip19.npubEncode(note.pubkey).slice(0, 10) + '...'}
+			{@const pubkey = note.pubkey}
+			{@const prof = profiles.get(pubkey)}
+			{@const name = prof?.name ?? nip19.npubEncode(pubkey).slice(0, 10) + '...'}
 			{@const display_name = prof?.display_name ?? ''}
-			{@const picture = prof?.picture ?? getRoboHashURL(note.pubkey)}
-			<dt><a href="{linkto}{nip19.npubEncode(note.pubkey)}" target="_blank" rel="noopener noreferrer"
+			{@const picture = prof?.picture ?? getRoboHashURL(pubkey)}
+			<dt><a href="{linkto}{nip19.npubEncode(pubkey)}" target="_blank" rel="noopener noreferrer"
 				><img src="{picture}" alt="@{name}" title="{display_name} @{name}" class="avator_author" /> {display_name} @{name}</a
 				> <a href="{linkto}{note.kind === 1 ? nip19.noteEncode(note.id) : nip19.neventEncode(note)}" target="_blank" rel="noopener noreferrer"
 				><br /><time>{(new Date(1000 * note.created_at)).toLocaleString()}</time></a
@@ -254,7 +257,7 @@ $: sortedEvents = sort === SortType.Time ? bookmarkedEvents :
 	{/each}
 </dl>
 </main>
-<footer><a href="https://github.com/nikolat/nostr-bookmark-trend">GitHub</a></footer>
+<footer><a href={linkGitHub} target="_blank" rel="noopener noreferrer">GitHub</a></footer>
 
 <style>
 #npub {
