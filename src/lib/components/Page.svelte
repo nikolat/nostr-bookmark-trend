@@ -1,8 +1,9 @@
 <script lang='ts'>
 import { NostrFetcher, type NostrEventWithAuthor } from 'nostr-fetch';
 import type { NostrEvent } from 'nostr-tools/core';
+import type { RelayRecord } from 'nostr-tools/relay';
 import { insertEventIntoDescendingList } from 'nostr-tools/utils';
-import { decode, neventEncode, noteEncode, npubEncode } from 'nostr-tools/nip19';
+import { decode, neventEncode, noteEncode, nprofileEncode, npubEncode } from 'nostr-tools/nip19';
 import { defaultRelays, getRoboHashURL, linkGitHub, linkto, threshold } from '$lib/config';
 
 const enum SortType {
@@ -20,15 +21,32 @@ let sort = SortType.Time;
 
 const getNpubWithNIP07 = async () => {
 	const nostr = window.nostr;
+	let pubkey: string | undefined;
 	if (nostr?.getPublicKey) {
-		let loginPubkey;
 		try {
-			loginPubkey = await nostr.getPublicKey();
+			pubkey = await nostr.getPublicKey();
 		} catch (error) {
 			console.error(error);
 			return;
 		}
-		npub = npubEncode(loginPubkey);
+		npub = npubEncode(pubkey);
+	}
+	if (pubkey !== undefined && nostr?.getRelays) {
+		let rr: RelayRecord;
+		try {
+			rr = await nostr.getRelays();
+		} catch (error) {
+			console.error(error);
+			return;
+		}
+		const relays: string[] = [];
+		for (const [k, v] of Object.entries(rr)) {
+			if (v.read)
+				relays.push(new URL(k).href);
+		}
+		if (relays.length > 0) {
+			npub = nprofileEncode({pubkey, relays})
+		}
 	}
 };
 
@@ -41,37 +59,43 @@ const getBookmarks = async () => {
 		console.error(error);
 		return;
 	}
-	if (dr.type !== 'npub') {
-		console.error(`${npub} is not npub`);
+	let pubkey: string;
+	let relaySet = new Set<string>(defaultRelays);
+	if (dr.type === 'npub') {
+		pubkey = dr.data;
+	}
+	else if (dr.type === 'nprofile') {
+		pubkey = dr.data.pubkey;
+		if (dr.data.relays !== undefined) {
+			for (const relay of dr.data.relays)
+				relaySet.add(new URL(relay).href);
+		}
+	}
+	else {
+		console.error(`${npub} is not npub/nprofile`);
 		return;
 	}
-	const loginPubkey = dr.data;
+	const targetPubkey = pubkey;
 	isGettingEvents = true;
 	message = 'getting bookmarks...';
 	const fetcher = NostrFetcher.init();
 	const ev10002: NostrEvent | undefined = await fetcher.fetchLastEvent(
-		defaultRelays,
-		{ kinds: [10002], authors: [loginPubkey] },
+		Array.from(relaySet),
+		{ kinds: [10002], authors: [targetPubkey] },
 	);
-	let relays: string[] = [];
-	if (ev10002 === undefined) {
-		relays = defaultRelays;
-	}
-	else {
+	if (ev10002 !== undefined) {
 		for (const tag of ev10002.tags.filter(tag => tag.length >= 2 && tag[0] === 'r' && URL.canParse(tag[1]))) {
 			if (tag.length === 2 || tag[2] === 'read') {
-				relays.push(tag[1]);
+				relaySet.add(new URL(tag[1]).href);
 			}
 		}
-		if (relays.length === 0) {
-			relays = defaultRelays;
-		}
 	}
+	const relays = Array.from(relaySet);
 	console.log('relays:', relays);
 	message = `${relays.length} relays`;
 	const ev3: NostrEvent | undefined = await fetcher.fetchLastEvent(
 		relays,
-		{ kinds: [3], authors: [loginPubkey] },
+		{ kinds: [3], authors: [targetPubkey] },
 	);
 	if (ev3 === undefined) {
 		console.warn('followees is 0');
@@ -148,7 +172,7 @@ const setBookmarkedPubkeys = async (itr: AsyncIterable<NostrEventWithAuthor<fals
 		if (event === undefined) {
 			continue;
 		}
-		for (const id of event.tags.filter(tag => tag[0] === 'e').map(tag => tag[1])) {
+		for (const id of event.tags.filter(tag => tag.length >= 2 && tag[0] === 'e').map(tag => tag[1])) {
 			bookmarkNoteIds.add(id);
 			let v = bookmarkedPubkeys.get(id);
 			if (v === undefined) {
@@ -206,7 +230,7 @@ $: sortedEvents = sort === SortType.Time ? bookmarkedEvents
 <header><h1>Nostr Bookmark Trend</h1></header>
 <main>
 <button on:click={getNpubWithNIP07}>get public key from extension</button>
-<input id="npub" type="text" placeholder="npub1..." bind:value={npub} />
+<input id="npub" type="text" placeholder="npub1... or nprofile1..." bind:value={npub} />
 <button on:click={getBookmarks} disabled={!npub || isGettingEvents}>show bookmarks of followees</button>
 <span>Sort</span>
 <label>
