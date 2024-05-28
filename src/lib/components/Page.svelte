@@ -110,18 +110,26 @@ const getBookmarks = async () => {
 			authors: followingPubkeys,
 			relayUrls: relays
 		},
-		{ kinds: [10003] },
+		{ kinds: [10003] },//Bookmarks
 	);
 	const ev30001PerAuthor = fetcher.fetchLastEventPerAuthor(
 		{
 			authors: followingPubkeys,
 			relayUrls: relays
 		},
-		{ kinds: [30001], '#d': ['bookmark'] },
+		{ kinds: [30001], '#d': ['bookmark'] },//Deprecated
+	);
+	const ev30003PerAuthor = fetcher.fetchLastEventPerAuthor(
+		{
+			authors: followingPubkeys,
+			relayUrls: relays
+		},
+		{ kinds: [30003] },//Bookmark sets
 	);
 	let bookmarkNoteIds = new Set<string>();
-	[bookmarkNoteIds, bookmarkedPubkeys] = await setBookmarkedPubkeys(ev10003PerAuthor, bookmarkNoteIds, bookmarkedPubkeys);
-	[bookmarkNoteIds, bookmarkedPubkeys] = await setBookmarkedPubkeys(ev30001PerAuthor, bookmarkNoteIds, bookmarkedPubkeys);
+	for (const itr of [ev10003PerAuthor, ev30001PerAuthor, ev30003PerAuthor]) {
+		[bookmarkNoteIds, bookmarkedPubkeys] = await setBookmarkedPubkeys(itr, bookmarkNoteIds, bookmarkedPubkeys);
+	}
 	const bookmarkNoteIdsTofetch = Array.from(bookmarkNoteIds).filter(id => (bookmarkedPubkeys.get(id)?.size ?? 0) >= threshold);
 	const pubkeysToFetch = new Set<string>();
 	for (const id of bookmarkNoteIdsTofetch) {
