@@ -1,25 +1,10 @@
 <script lang='ts'>
 import { NostrFetcher, type NostrEventWithAuthor } from 'nostr-fetch';
-import { nip19, type NostrEvent } from 'nostr-tools';
+import type { NostrEvent } from 'nostr-tools/core';
 import { insertEventIntoDescendingList } from 'nostr-tools/utils';
-import type { WindowNostr } from 'nostr-tools/nip07';
+import { decode, neventEncode, noteEncode, npubEncode } from 'nostr-tools/nip19';
+import { defaultRelays, getRoboHashURL, linkGitHub, linkto, threshold } from '$lib/config';
 
-interface Window {
-	nostr?: WindowNostr;
-}
-
-const defaultRelays = [
-	'wss://relay-jp.nostr.wirednet.jp',
-	'wss://yabu.me',
-	'wss://nos.lol',
-	'wss://relay.damus.io',
-];
-const linkGitHub = 'https://github.com/nikolat/nostr-bookmark-trend';
-const linkto = 'https://nostx.io/';
-const threshold = 2;
-const getRoboHashURL = (pubkey: string) => {
-	return `https://robohash.org/${nip19.npubEncode(pubkey)}?set=set4`;
-};
 const enum SortType {
 	Time,
 	Count,
@@ -34,7 +19,7 @@ let message = '';
 let sort = SortType.Time;
 
 const getNpubWithNIP07 = async () => {
-	const nostr = (window as Window).nostr;
+	const nostr = window.nostr;
 	if (nostr?.getPublicKey) {
 		let loginPubkey;
 		try {
@@ -43,7 +28,7 @@ const getNpubWithNIP07 = async () => {
 			console.error(error);
 			return;
 		}
-		npub = nip19.npubEncode(loginPubkey);
+		npub = npubEncode(loginPubkey);
 	}
 };
 
@@ -51,7 +36,7 @@ const getBookmarks = async () => {
 	bookmarkedPubkeys = new Map<string, Set<string>>();
 	let dr;
 	try {
-		dr = nip19.decode(npub);
+		dr = decode(npub);
 	} catch (error) {
 		console.error(error);
 		return;
@@ -239,20 +224,20 @@ $: sortedEvents = sort === SortType.Time ? bookmarkedEvents
 		{#if count >= threshold}
 			{@const pubkey = note.pubkey}
 			{@const prof = profiles.get(pubkey)}
-			{@const name = prof?.name ?? nip19.npubEncode(pubkey).slice(0, 10) + '...'}
+			{@const name = prof?.name ?? npubEncode(pubkey).slice(0, 10) + '...'}
 			{@const display_name = prof?.display_name ?? ''}
 			{@const picture = prof?.picture ?? getRoboHashURL(pubkey)}
-			<dt><a href="{linkto}{nip19.npubEncode(pubkey)}" target="_blank" rel="noopener noreferrer"
+			<dt><a href="{linkto}{npubEncode(pubkey)}" target="_blank" rel="noopener noreferrer"
 				><img src="{picture}" alt="@{name}" title="{display_name} @{name}" class="avator_author" /> {display_name} @{name}</a
-				> <a href="{linkto}{note.kind === 1 ? nip19.noteEncode(note.id) : nip19.neventEncode(note)}" target="_blank" rel="noopener noreferrer"
+				> <a href="{linkto}{note.kind === 1 ? noteEncode(note.id) : neventEncode({...note, author: note.pubkey})}" target="_blank" rel="noopener noreferrer"
 				><br /><time>{(new Date(1000 * note.created_at)).toLocaleString()}</time></a
 				><span
 			>{#each bookmarkedPubkeys.get(note.id) ?? [] as pubkey}
 				{@const prof = profiles.get(pubkey)}
-				{@const name = prof?.name ?? nip19.npubEncode(pubkey).slice(0, 10) + '...'}
+				{@const name = prof?.name ?? npubEncode(pubkey).slice(0, 10) + '...'}
 				{@const display_name = prof?.display_name ?? ''}
 				{@const picture = prof?.picture ?? getRoboHashURL(pubkey)}
-				<a href="{linkto}{nip19.npubEncode(pubkey)}" target="_blank" rel="noopener noreferrer"
+				<a href="{linkto}{npubEncode(pubkey)}" target="_blank" rel="noopener noreferrer"
 				><img src="{picture}" alt="@{name}" title="{display_name} @{name}" class="avator_bookmark" /></a>
 			{/each}</span
 			></dt>
