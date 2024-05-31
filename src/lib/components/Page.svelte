@@ -2,7 +2,7 @@
 import { NostrFetcher, type NostrEventWithAuthor } from 'nostr-fetch';
 import type { NostrEvent } from 'nostr-tools/pure';
 import type { RelayRecord } from 'nostr-tools/relay';
-import { insertEventIntoDescendingList } from 'nostr-tools/utils';
+import { insertEventIntoDescendingList, normalizeURL } from 'nostr-tools/utils';
 import * as nip19 from 'nostr-tools/nip19';
 import { defaultRelays, getRoboHashURL, linkGitHub, linkto, threshold } from '$lib/config';
 
@@ -68,7 +68,7 @@ const getBookmarks = async () => {
 		pubkey = dr.data.pubkey;
 		if (dr.data.relays !== undefined) {
 			for (const relay of dr.data.relays)
-				relaySet.add(new URL(relay).href);
+				relaySet.add(normalizeURL(relay));
 		}
 	}
 	else {
@@ -86,7 +86,7 @@ const getBookmarks = async () => {
 	if (ev10002 !== undefined) {
 		for (const tag of ev10002.tags.filter(tag => tag.length >= 2 && tag[0] === 'r' && URL.canParse(tag[1]))) {
 			if (tag.length === 2 || tag[2] === 'read') {
-				relaySet.add(new URL(tag[1]).href);
+				relaySet.add(normalizeURL(tag[1]));
 			}
 		}
 	}
