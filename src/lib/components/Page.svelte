@@ -1,6 +1,6 @@
 <script lang='ts'>
 import { NostrFetcher, type NostrEventWithAuthor } from 'nostr-fetch';
-import type { NostrEvent } from 'nostr-tools/core';
+import type { NostrEvent } from 'nostr-tools/pure';
 import type { RelayRecord } from 'nostr-tools/relay';
 import { insertEventIntoDescendingList } from 'nostr-tools/utils';
 import * as nip19 from 'nostr-tools/nip19';
