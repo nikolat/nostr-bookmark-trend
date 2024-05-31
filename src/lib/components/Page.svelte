@@ -42,7 +42,7 @@ const getNpubWithNIP07 = async () => {
 		const relays: string[] = [];
 		for (const [k, v] of Object.entries(rr)) {
 			if (v.read)
-				relays.push(new URL(k).href);
+				relays.push(normalizeURL(k));
 		}
 		if (relays.length > 0) {
 			npub = nip19.nprofileEncode({pubkey, relays})
