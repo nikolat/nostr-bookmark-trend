@@ -300,6 +300,8 @@ dd {
 	clear: left;
 	white-space: pre-wrap;
 	margin-bottom: 1em;
+	max-height: 40em;
+	overflow-y: auto;
 }
 footer {
 	text-align: center;
