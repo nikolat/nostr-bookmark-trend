@@ -30,7 +30,8 @@
         console.error(error);
         return;
       }
-      await setNpubAndRelays(pubkey);
+      //await setNpubAndRelays(pubkey);
+      //=> nostr-login
     }
   };
 
