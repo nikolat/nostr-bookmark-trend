@@ -5,6 +5,7 @@
   import { insertEventIntoDescendingList, normalizeURL } from 'nostr-tools/utils';
   import * as nip19 from 'nostr-tools/nip19';
   import { defaultRelays, getRoboHashURL, linkGitHub, linkto, threshold } from '$lib/config';
+  import { onMount } from 'svelte';
 
   const enum SortType {
     Time,
@@ -21,17 +22,22 @@
 
   const getNpubWithNIP07 = async () => {
     const nostr = window.nostr;
-    let pubkey: string | undefined;
     if (nostr?.getPublicKey) {
+      let pubkey: string;
       try {
         pubkey = await nostr.getPublicKey();
       } catch (error) {
         console.error(error);
         return;
       }
-      npub = nip19.npubEncode(pubkey);
+      await setNpubAndRelays(pubkey);
     }
-    if (pubkey !== undefined && nostr?.getRelays) {
+  };
+
+  const setNpubAndRelays = async (pubkey: string) => {
+    npub = nip19.npubEncode(pubkey);
+    const nostr = window.nostr;
+    if (nostr?.getRelays) {
       let rr: RelayRecord;
       try {
         rr = await nostr.getRelays();
@@ -222,6 +228,17 @@
             return 0;
           })
         : bookmarkedEvents;
+
+  onMount(() => {
+    document.addEventListener('nlAuth', (e) => {
+      const ce: CustomEvent = e as CustomEvent;
+      if (ce.detail.type === 'login' || ce.detail.type === 'signup') {
+        setNpubAndRelays(ce.detail.pubkey);
+      } else {
+        npub = '';
+      }
+    });
+  });
 </script>
 
 <svelte:head>
