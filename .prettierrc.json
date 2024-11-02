@@ -1,0 +1,19 @@
+{
+  "plugins": ["prettier-plugin-svelte"],
+  "printWidth": 140,
+  "singleQuote": true,
+  "overrides": [
+    {
+      "files": ["**/*.css", "**/*.html", "**/*.yml"],
+      "options": {
+        "singleQuote": false
+      }
+    },
+    {
+      "files": ["**/*.svelte"],
+      "options": {
+        "parser": "svelte"
+      }
+    }
+  ]
+}
