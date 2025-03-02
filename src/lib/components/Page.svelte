@@ -279,16 +279,16 @@
 	>
 	<span>Sort</span>
 	<label>
-		<input type="radio" bind:group={sort} name="sorttype" value={'Time'} />
+		<input type="radio" bind:group={sort} name="sorttype" value="Time" />
 		time
 	</label>
 	<label>
-		<input type="radio" bind:group={sort} name="sorttype" value={'Count'} />
+		<input type="radio" bind:group={sort} name="sorttype" value="Count" />
 		count
 	</label>
 	<p>{message}</p>
 	<dl>
-		{#each sortedEvents as note}
+		{#each sortedEvents as note (note.id)}
 			{@const count = bookmarkedPubkeys.get(note.id)?.size ?? 0}
 			{#if count >= threshold}
 				{@const pubkey = note.pubkey}
@@ -314,7 +314,7 @@
 						rel="noopener noreferrer"
 						><br /><time>{new Date(1000 * note.created_at).toLocaleString()}</time></a
 					><span
-						>{#each bookmarkedPubkeys.get(note.id) ?? [] as pubkey}
+						>{#each bookmarkedPubkeys.get(note.id) ?? [] as pubkey (pubkey)}
 							{@const prof = profiles.get(pubkey)}
 							{@const name = prof?.name ?? nip19.npubEncode(pubkey).slice(0, 10) + '...'}
 							{@const display_name = prof?.display_name ?? ''}
