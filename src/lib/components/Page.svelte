@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { NostrFetcher, type NostrEventWithAuthor } from 'nostr-fetch';
 	import type { NostrEvent } from 'nostr-tools/pure';
-	import type { RelayRecord } from 'nostr-tools/relay';
 	import { insertEventIntoDescendingList, normalizeURL } from 'nostr-tools/utils';
 	import * as nip19 from 'nostr-tools/nip19';
 	import { defaultRelays, getRoboHashURL, linkGitHub, linkto, threshold } from '$lib/config';
@@ -25,35 +24,11 @@
 	const getNpubWithNIP07 = async () => {
 		const nostr = window.nostr;
 		if (nostr?.getPublicKey) {
-			let _pubkey: string;
 			try {
-				_pubkey = await nostr.getPublicKey();
+				const pubkey = await nostr.getPublicKey();
+				npub = nip19.npubEncode(pubkey);
 			} catch (error) {
 				console.error(error);
-				return;
-			}
-			//await setNpubAndRelays(_pubkey);
-			//=> nostr-login
-		}
-	};
-
-	const setNpubAndRelays = async (pubkey: string) => {
-		npub = nip19.npubEncode(pubkey);
-		const nostr = window.nostr;
-		if (nostr?.getRelays) {
-			let rr: RelayRecord;
-			try {
-				rr = await nostr.getRelays();
-			} catch (error) {
-				console.error(error);
-				return;
-			}
-			const relays: string[] = [];
-			for (const [k, v] of Object.entries(rr)) {
-				if (v.read) relays.push(normalizeURL(k));
-			}
-			if (relays.length > 0) {
-				npub = nip19.nprofileEncode({ pubkey, relays });
 			}
 		}
 	};
@@ -256,7 +231,7 @@
 		document.addEventListener('nlAuth', (e) => {
 			const ce: CustomEvent = e as CustomEvent;
 			if (ce.detail.type === 'login' || ce.detail.type === 'signup') {
-				setNpubAndRelays(ce.detail.pubkey);
+				npub = nip19.npubEncode(ce.detail.pubkey);
 			} else {
 				npub = '';
 			}
